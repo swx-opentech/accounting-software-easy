@@ -1,0 +1,68 @@
+{% include 'base.html' %}
+<title>修改密码</title>
+<br><br><br>
+<h1 style="text-align: center;">修改密码模块</h1>
+<div class=" container">
+    <br>
+    <div class="input-group mb-3">
+        <span class="input-group-text" id="basic-addon1">输入你的原始密码</span>
+        <input id="originpwd" type="password" class="form-control" aria-label="用户名" aria-describedby="basic-addon1">
+    </div>
+    <div class="input-group mb-3">
+        <span class="input-group-text" id="basic-addon1">输入你的修改后的密码</span>
+        <input id="change1" type="password" class="form-control" aria-label="用户名" aria-describedby="basic-addon1">
+    </div>
+    <div class="input-group mb-3">
+        <span class="input-group-text" id="basic-addon1">再次输入你的修改后的密码</span>
+        <input id="change2" type="password" class="form-control" aria-label="用户名" aria-describedby="basic-addon1">
+    </div>
+    <div style="text-align: center;">
+        <button class=" btn btn-primary" onclick="change_()">确定修改</button>
+    </div>
+</div>
+
+<script>
+    function change_(){
+        var originpwd = $('#originpwd').val()
+        var change1 = $('#change1').val()
+        var change2 = $('#change2').val()
+
+        if (change1=='' || change2 =='' || originpwd == ''){
+            alert("没有输入完全！");
+            return false;
+        }
+
+        if (change1 != change2){
+            alert("两次密码不一致！");
+            return false;
+        }
+
+        if (change1 == originpwd){
+            alert("原始密码和修改密码相同！设置不同的密码！");
+            return false;
+        }
+
+        var requestData = {
+            originpwd : jiami(originpwd),
+            change : jiami(change1)
+        }
+        $.ajax({
+            url: 'changepwd',
+            type: 'POST',
+            contentType: 'application/json', // 设置Content-Type为application/json
+            data: JSON.stringify(requestData), // 将数据转换为JSON字符串
+            success: function(response) {
+                if (response['status']=='success'){
+                    alert('修改成功！');
+                    location.href = 'main';
+                } else {
+                    alert(response['msg']);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("严重网络错误！")
+            }
+        });
+
+    }
+</script>

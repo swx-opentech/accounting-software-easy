@@ -1,0 +1,92 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="{{url_for('static',filename='bootstrap5.min.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='docs.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='Microsoft.FluentUI.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='jquery.toast.min.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='favicon.ico')}}" rel="icon">
+
+    <script src="{{url_for('static',filename='jiami.js')}}"></script>
+    <script src="{{url_for('static',filename='chart.js')}}"></script>
+    <script src="{{url_for('static',filename='bootstrap5.bundle.min.js')}}"></script>
+    <script src="{{url_for('static',filename='jquery-3.7.1.min.js')}}"></script>
+    <script type="module" src="{{url_for('static',filename='web-components.min.js')}}"></script>
+    <script src="{{url_for('static',filename='jquery.toast.min.js')}}"></script>
+</head>
+<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="main">欢迎使用智慧记账软件系统</a>
+
+        <!-- 是折叠关闭的按钮，不要改！ -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="main">主页</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="flow">开始记账</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        数据分析
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="anaData">计日分析</a></li>
+                        <li><a class="dropdown-item" href="group">计日对比</a></li>
+                        <li><a class="dropdown-item" href="category">分类对比</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class=" nav-link active" href="changepwd" aria-disabled="true">修改密码</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="export_recent_month_data">下载消费数据（recent month）</a>
+                </li>
+            </ul>
+
+            <button class="btn btn-outline-success" onclick="location.href='logout'">登出</button>
+
+        </div>
+    </div>
+</nav>
+
+<script>
+    // 统一的提示框函数（使用Bootstrap Toast组件）
+    function showToast(title, message, type) {
+        // 动态创建Toast元素
+        const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">
+              <strong>${title}</strong>: ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      `;
+
+        // 添加到页面并显示
+        const toastContainer = $('#toastContainer');
+        if (toastContainer.length === 0) {
+            $('body').append('<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+        }
+        $('#toastContainer').append(toastHtml);
+
+        // 初始化并显示Toast
+        const toast = new bootstrap.Toast($('#toastContainer .toast:last-child'));
+        toast.show();
+
+        // 自动移除
+        setTimeout(() => {
+            $('#toastContainer .toast:last-child').remove();
+        }, 3000);
+    }
+</script>

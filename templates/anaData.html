@@ -1,0 +1,223 @@
+{% include 'base.html' %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析</title>
+    <style>
+        /* 保持原有单元格样式，增加表格滚动优化 */
+        .table th,
+        .table td {
+            vertical-align: middle;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .table-container {
+            /* 修改：计算高度，使其占满剩余空间 */
+            max-height: calc(100vh - 380px);
+            overflow-y: auto;
+            /* 移除 margin-top，让表格紧贴上方区域 */
+        }
+
+        /* 表单标签宽度统一，避免错位 */
+        .input-group-text {
+            min-width: 120px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+
+<body class="d-flex flex-column m-0 p-0" style="height: 100vh;">
+    <div class="container-fluid flex-grow-1 d-flex flex-column">
+        <div class="card flex-grow-1">
+            <!-- 卡片标题 -->
+            <div class="card-header bg-primary text-white text-center">
+                <h5 class="card-title mb-0">数据分析模块</h5>
+            </div>
+
+            <div class="card-body flex-grow-1 d-flex flex-column p-4">
+                <!-- 筛选条件区域 -->
+                <form id="analysisForm" class="row g-3 align-items-end mb-4">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">分析范围</span>
+                            <select class="form-select" id="choosedate" name="choosedate" required>
+                                <option value="1" selected>全部时间</option>
+                                <option value="2">选定日期</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5" id="dateInputGroup">
+                        <div class="input-group">
+                            <span class="input-group-text">选择日期</span>
+                            <input id="time2" name="time2" type="date" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <span id="btnText">分析</span>
+                        </button>
+                    </div>
+                </form>
+
+                <hr class="my-2">
+
+                <div class="row mb-4 flex-shrink-0">
+                    <div class="col-md-6">
+                        <div class="card bg-light h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-success">本页算术收入</h5>
+                                <p class="card-text display-6" id="income">[--]</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-danger">本页算术支出</h5>
+                                <p class="card-text display-6" id="outcome">[--]</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card flex-grow-1 d-flex flex-column">
+                    <div class="card-header bg-secondary text-white text-center flex-shrink-0">
+                        详细数据列表
+                    </div>
+                    <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+                        <div class="table-container flex-grow-1">
+                            <table class="table table-striped table-hover table-bordered mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>简明时间</th>
+                                        <th>流水金额</th>
+                                        <th>备注信息</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">等待用户请求……</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#time2').prop('disabled', true);
+            $('#time2').val(new Date().toISOString().split('T')[0]);
+
+            // 监听日期选择下拉框变化
+            $('#choosedate').on('change', function () {
+                if ($(this).val() === '2') {
+                    $('#time2').prop('disabled', false);
+                    $('#time2').prop('required', true);
+                } else {
+                    $('#time2').prop('disabled', true);
+                    $('#time2').prop('required', false);
+                }
+            });
+
+            // 表单提交处理
+            $('#analysisForm').on('submit', function (e) {
+                e.preventDefault();
+
+                var type = $('#choosedate').val();
+                var time2 = $('#time2').val();
+
+                // 客户端验证
+                if (type === '2' && !time2) {
+
+                    if (typeof showToast === 'function') {
+                        showToast('错误', '请选择一个有效的日期', 'danger');
+                    } else {
+                        alert('请选择一个有效的日期');
+                    }
+                    return false;
+                }
+
+                // 显示加载状态
+                $('#btnText').text('分析中');
+                $('#detailBody').html('<tr><td colspan="4" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>');
+                $('#income, #outcome').text('加载中...');
+
+                var requestData = {
+                    type: type,
+                    Time: time2 // 保持与后端约定的字段名
+                };
+
+                $.ajax({
+                    url: 'anaData',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(requestData),
+                    success: function (response) {
+                        if (response['status'] === 'success') {
+                            // 格式化金额为两位小数
+                            $('#income').text(response['income'].toFixed(2));
+                            $('#outcome').text(Math.abs(response['outcome']).toFixed(2)); // 确保支出为正数显示
+
+                            var data = response['detail'];
+                            var html = '';
+
+                            if (data && data.length > 0) {
+                                for (var i = 0; i < data.length; i++) {
+                                    var row = data[i];
+                                    html += '<tr>';
+                                    // 格式化金额列
+                                    for (var j = 0; j < row.length; j++) {
+                                        if (j === 2) { // 金额在第三列
+                                            html += '<td>' + parseFloat(row[j]).toFixed(2) + '</td>';
+                                        } else {
+                                            html += '<td>' + (row[j] || '-') + '</td>';
+                                        }
+                                    }
+                                    html += '</tr>';
+                                }
+                            } else {
+                                html += '<tr><td colspan="4" class="text-center text-muted">暂无数据</td></tr>';
+                            }
+                            $('#detailBody').html(html);
+                            if (typeof showToast === 'function') {
+                                showToast('成功', '数据分析完成', 'success');
+                            }
+                        } else {
+                            $('#detailBody').html('<tr><td colspan="4" class="text-center text-danger">请求失败</td></tr>');
+                             if (typeof showToast === 'function') {
+                                showToast('失败', '获取数据失败，请稍后重试', 'danger');
+                            }
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX Error:", status, error);
+                        $('#detailBody').html('<tr><td colspan="4" class="text-center text-danger">网络错误</td></tr>');
+                        $('#income, #outcome').text('[错误]');
+                        if (typeof showToast === 'function') {
+                           showToast('错误', '网络异常，请检查连接', 'danger');
+                        }
+                    },
+                    complete: function () {
+                        // 恢复按钮状态
+                        $('#btnText').text('分析');
+                    }
+                });
+            });
+        });
+
+    </script>
+</body>
+
+</html>

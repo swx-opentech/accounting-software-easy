@@ -1,0 +1,226 @@
+{% include 'base.html' %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分组分析</title>
+    <style>
+        .table th,
+        .table td {
+            vertical-align: middle;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* 关键修改：确保图表容器在 flex 布局中能正确拉伸 */
+        .chart-container-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .chart-container {
+            position: relative;
+            flex-grow: 1; /* 让图表容器占满父容器剩余高度 */
+            width: 100%;
+        }
+
+        .input-group-text {
+            min-width: 100px;
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column m-0 p-0" style="height: 100vh;">
+    <div class="container-fluid flex-grow-1 d-flex flex-column">
+        <div class="card flex-grow-1 d-flex flex-column">
+            <div class="card-header bg-primary text-white text-center">
+                <h5 class="card-title mb-0">分组分析模块</h5>
+            </div>
+
+            <div class="card-body flex-grow-1 d-flex flex-column p-4">
+                <!-- 筛选条件区域 -->
+                <div class="row g-3 mb-4 flex-shrink-0">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">开始日期</span>
+                            <input type="date" id="startDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">结束日期</span>
+                            <input type="date" id="endDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-success w-100" onclick="ana()">分析</button>
+                    </div>
+                </div>
+
+                <hr class="my-2 flex-shrink-0">
+
+
+                <div class="row flex-grow-1">
+                    <!-- 图表卡片 -->
+                    <div class="col-md-8 d-flex flex-column">
+                        <div class="card flex-grow-1 d-flex flex-column">
+                            <div class="card-header bg-secondary text-white text-center flex-shrink-0">
+                                每日总收支趋势图
+                            </div>
+                            <div class="card-body flex-grow-1 d-flex">
+                                 <!-- 新增 wrapper 确保高度 100% -->
+                                <div class="chart-container-wrapper w-100">
+                                    <div class="chart-container">
+                                        <!-- 画布元素 -->
+                                        <canvas id="myChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据表格卡片 -->
+                    <div class="col-md-4 d-flex flex-column">
+                        <div class="card flex-grow-1 d-flex flex-column">
+                            <div class="card-header bg-secondary text-white text-center">
+                                每日收支汇总
+                            </div>
+                            <div class="card-body flex-grow-1 overflow-auto">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>日期</th>
+                                            <th>当日总收支</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detailBody">
+                                        <tr>
+                                            <td colspan="2" class="text-center text-muted">请选择日期范围并点击分析</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            $('#startDate').val(firstDay.toISOString().split('T')[0]);
+            $('#endDate').val(lastDay.toISOString().split('T')[0]);
+        });
+
+        // 全局变量，用于存储图表实例
+        var myChartInstance = null;
+
+        function ana() {
+            const start = $('#startDate').val();
+            const end = $('#endDate').val();
+
+            if (!start || !end) {
+                show_error('错误', '请选择完整日期范围');
+                return;
+            }
+
+            $.ajax({
+                url: 'group',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ start_date: start, end_date: end }),
+                success: function (res) {
+                    if (res.status === 'success') {
+                        renderTable(res.detail);
+                        renderChart(res.detail);
+                    } else {
+                        show_error('失败', res.msg || '分析失败');
+                    }
+                },
+                error: function () {
+                    show_error('错误', '网络异常');
+                }
+            });
+        }
+
+        function renderTable(data) {
+            let html = '';
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    html += `<tr><td>${item.date}</td><td>${parseFloat(item.total).toFixed(2)}</td></tr>`;
+                });
+            } else {
+                html += '<tr><td colspan="2" class="text-center text-muted">该时间段无数据</td></tr>';
+            }
+            $('#detailBody').html(html);
+        }
+
+        // 渲染图表
+        function renderChart(apiData) {
+            // 1. 获取画布上下文
+            const ctx = document.getElementById('myChart').getContext('2d');
+
+            // 2. 如果已有图表实例，先销毁它
+            if (myChartInstance) {
+                myChartInstance.destroy();
+            }
+
+            // 3. 准备 Chart.js 所需的数据格式
+            const labels = apiData.map(item => item.date);
+            const datasetData = apiData.map(item => parseFloat(item.total));
+
+            // 4. 定义 Chart.js 的配置对象
+            const chartData = {
+                labels: labels,
+                datasets: [{
+                    label: '每日总收支 (元)',
+                    data: datasetData,
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            };
+
+            const config = {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // 重要：允许图表容器控制尺寸
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: { display: true, text: '金额 (元)' }
+                        },
+                        x: {
+                            title: { display: true, text: '日期' }
+                        }
+                    }
+                }
+            };
+
+            // 5. 创建并渲染图表
+            myChartInstance = new Chart(ctx, config);
+        }
+
+        function show_error(head, text) {
+            $.toast({
+                heading: head,
+                text: text,
+                showHideTransition: 'fade',
+                icon: 'error',
+                stack: 6,
+                position: 'top-center',
+                hideAfter: 1500
+            });
+        }
+    </script>
+</body>
+
+</html>

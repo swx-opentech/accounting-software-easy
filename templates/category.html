@@ -1,0 +1,234 @@
+{% include 'base.html' %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类消费饼图</title>
+    <style>
+        .table th,
+        .table td {
+            vertical-align: middle;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* 关键修改：确保图表容器在 flex 布局中能正确拉伸 */
+        .chart-container-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            /* 让图表容器占满父容器剩余高度 */
+            width: 100%;
+        }
+
+        .input-group-text {
+            min-width: 100px;
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column m-0 p-0" style="height: 100vh;">
+    <div class="container-fluid flex-grow-1 d-flex flex-column">
+        <div class="card flex-grow-1 d-flex flex-column">
+            <div class="card-header bg-primary text-white text-center">
+                <h5 class="card-title mb-0">分类消费占比分析</h5>
+            </div>
+
+            <div class="card-body flex-grow-1 d-flex flex-column p-4">
+                <!-- 筛选条件区域 -->
+                <div class="row g-3 mb-4 flex-shrink-0">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">开始日期</span>
+                            <input type="date" id="startDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">结束日期</span>
+                            <input type="date" id="endDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-success w-100" onclick="ana()">分析</button>
+                    </div>
+                </div>
+
+                <hr class="my-2 flex-shrink-0">
+
+                <div class="row flex-grow-1">
+                    <!-- 图表卡片 -->
+                    <div class="col-md-8 d-flex flex-column">
+                        <div class="card flex-grow-1 d-flex flex-column">
+                            <div class="card-header bg-secondary text-white text-center flex-shrink-0">
+                                消费占比图
+                            </div>
+                            <div class="card-body flex-grow-1 d-flex">
+                                <!-- 新增 wrapper 确保高度 100% -->
+                                <div class="chart-container-wrapper w-100">
+                                    <div class="chart-container" style="margin: 15px;">
+                                        <!-- 画布元素 -->
+                                        <canvas id="myChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据表格卡片 -->
+                    <div class="col-md-4 d-flex flex-column">
+                        <div class="card flex-grow-1 d-flex flex-column">
+                            <div class="card-header bg-secondary text-white text-center">
+                                消费明细
+                            </div>
+                            <div class="card-body flex-grow-1 overflow-auto">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>消费类别</th>
+                                            <th>总金额 (元)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detailBody">
+                                        <tr>
+                                            <td colspan="2" class="text-center text-muted">等待用户请求……</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            $('#startDate').val(firstDay.toISOString().split('T')[0]);
+            $('#endDate').val(lastDay.toISOString().split('T')[0]);
+        });
+
+        // 全局变量，用于存储图表实例
+        var myChartInstance = null;
+
+        function ana() {
+            const start = $('#startDate').val();
+            const end = $('#endDate').val();
+
+            if (!start || !end) {
+                show_error('错误', '请选择完整日期范围');
+                return;
+            }
+
+            $.ajax({
+                url: 'category',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ start_date: start, end_date: end }),
+                success: function (res) {
+                    if (res.status === 'success') {
+                        renderTable(res.detail);
+                        renderChart(res.detail);
+                    } else {
+                        show_error('失败', res.msg || '分析失败');
+                    }
+                },
+                error: function () {
+                    show_error('错误', '网络异常');
+                }
+            });
+        }
+
+        function renderTable(data) {
+            let html = '';
+            if (data && data.length > 0) {
+                // 按金额降序排序
+                data.sort((a, b) => b.amount - a.amount);
+                data.forEach(item => {
+                    html += `<tr><td>${item.category}</td><td>${parseFloat(item.amount).toFixed(2)}</td></tr>`;
+                });
+            } else {
+                html += '<tr><td colspan="2" class="text-center text-muted">该时间段内无消费数据</td></tr>';
+            }
+            $('#detailBody').html(html);
+        }
+
+        // 渲染图表
+        function renderChart(apiData) {
+            // 1. 获取画布上下文
+            const ctx = document.getElementById('myChart').getContext('2d');
+
+            // 2. 如果已有图表实例，先销毁它
+            if (myChartInstance) {
+                myChartInstance.destroy();
+            }
+
+            // 如果没有数据，清空图表区域
+            if (!apiData || apiData.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                return;
+            }
+
+            // 3. 准备 Chart.js 所需的数据格式
+            const labels = apiData.map(item => item.category);
+            const datasetData = apiData.map(item => parseFloat(item.amount));
+
+            // 定义一个颜色数组
+            const colors = [
+                'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                'rgba(108, 117, 125, 0.7)', 'rgba(40, 167, 69, 0.7)', 'rgba(220, 53, 69, 0.7)',
+                'rgba(2, 117, 216, 0.7)'
+            ];
+
+            // 4. 定义 Chart.js 的配置对象
+            const chartData = {
+                labels: labels,
+                datasets: [{
+
+                    label: '消费金额 (元)',
+                    data: datasetData,
+                    borderWidth: 1,
+                    hoverOffset: 10
+                }]
+            };
+
+            const config = {
+                type: 'doughnut',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, 
+                }
+            };
+
+            // 5. 创建并渲染图表
+            myChartInstance = new Chart(ctx, config);
+        }
+
+        function show_error(head, text) {
+            $.toast({
+                heading: head,
+                text: text,
+                showHideTransition: 'fade',
+                icon: 'error',
+                stack: 6,
+                position: 'top-center',
+                hideAfter: 1500
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,123 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="{{url_for('static',filename='bootstrap5.min.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='docs.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='Microsoft.FluentUI.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='jquery.toast.min.css')}}" rel="stylesheet">
+    <link href="{{url_for('static',filename='favicon.ico')}}" rel="icon">
+
+    <script src="{{url_for('static',filename='bootstrap5.bundle.min.js')}}"></script>
+    <script src="{{url_for('static',filename='jiami.js')}}"></script>
+    <script src="{{url_for('static',filename='jquery-3.7.1.min.js')}}"></script>
+    <script type="module" src="{{url_for('static',filename='web-components.min.js')}}"></script>
+    <script src="{{url_for('static',filename='jquery.toast.min.js')}}"></script>
+</head>
+
+<title>用户登录</title>
+
+<body>
+    <h1 style="text-align: center;">用户登录</h1>
+    <div class=" container">
+        <div class=" row">
+            <div class=" col-4">
+                <img src="/static/image/cover.jpg" style="width: 100%;">
+            </div>
+
+            <div class="col-8">
+                <br><br><br><br>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" id="basic-addon1">用户名</span>
+                    <input id="username" type="text" class="form-control" aria-label="用户名"
+                        aria-describedby="basic-addon1">
+                </div>
+                <br>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" id="basic-addon1">密&nbsp;码</span>
+                    <input id="password" type="password" class="form-control" aria-label="用户名"
+                        aria-describedby="basic-addon1">
+                </div>
+                <div style="text-align: center;">
+                    <br>
+                    <button class=" btn btn-primary" onclick="login()">登录</button>
+                    <br><br>
+                    <label>开发人员：浙江省衢州第二中学 沈文轩</label>
+                    <label style="color: red;">智慧记账软件V1.0</label>
+
+                </div>
+                <br>
+                <label style="font-weight: bold;">写在前面：
+                    <br>
+                    2024年6月的作品，当时是花了2小时做出来的；emm
+                    <br>
+                    为了追求效率，不支持多用户，只有select insert 没有 delete update.
+                    <br>
+                    如你所见的，封面是一如既往的“简约”。。。其实也没花太多心思，token考核要用到
+                    <br>
+                    但是我实在不想往以前的屎山上面堆了，所以，我让豆包把界面优化了一下，重写了部分函数
+                    <br>
+                    诶，不得不说现在的ai还是很厉害的，一下就把我的复古界面做的好看了不少，但是基本js代码也是没变的。
+                    <br>
+                    拿过来撮合着用用参加token考核吧。
+                    <br>
+                    这次重写，主要是修复了部分安全性问题，如sql注入，json的不存在元素的get出错等等，
+                    <br>
+                    还是单用户算了，多用户太麻烦了（其实也还好，主要没时间了），加一个认证模块好废时间的，就这样子好了。
+                    <br>
+                    保留了多用户的入口，方便以后扩展，如users表，流水包含用户。
+                    <br>
+                    希望各位token佬可以满意吧。
+                </label>
+            </div>
+        </div>
+
+
+    </div>
+</body>
+<script>
+    function login() {
+        var username = $('#username').val();
+        var password = $('#password').val();
+
+        if (username == '' || password == '') {
+            show_error('错误', '用户名密码没有填写！');
+            return 0;
+        }
+        var requestbody = {
+            username: username,
+            password: jiami(password)
+        }
+
+        // AJAX 请求
+        $.ajax({
+            url: 'login',
+            type: 'POST',
+            contentType: 'application/json', // 设置Content-Type为application/json
+            data: JSON.stringify(requestbody), // 将数据转换为JSON字符串
+            success: function (response) {
+                if (response['status'] == 'success') {
+                    location.href = 'main';
+                } else {
+                    show_error('登录失败！', '用户名密码错误！')
+                    $('#password').val('')
+
+                }
+            },
+            error: function (xhr, status, error) {
+                $.toast({ text: '网络错误！' })
+            }
+        })
+    }
+    function show_error(head, text) {
+        $.toast({
+            heading: head,
+            text: text,
+            showHideTransition: 'fade',
+            icon: 'error',
+            stack: 6,
+            position: 'top-center',
+            hideAfter: 1500 // 隐藏延迟时间 (毫秒)
+        })
+    }
+
+</script>

@@ -1,1 +1,1383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人记账助手</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 图标库 -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        // Tailwind 自定义配置
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        income: '#10b981',
+                        expense: '#ef4444',
+                        neutral: '#64748b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .nav-active {
+                @apply bg-primary/10 text-primary border-l-4 border-primary;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- 顶部标题 -->
+        <header class="mb-8 text-center">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-gray-800 mb-2">个人记账助手</h1>
+            <p class="text-gray-500">轻松管理你的收支，养成良好理财习惯</p>
+        </header>
 
+        <!-- 主布局 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 左侧导航 -->
+            <aside class="lg:col-span-3 bg-white rounded-lg card-shadow p-4">
+                <!-- 用户管理 -->
+                <div class="mb-6">
+                    <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                        <i class="fa fa-user-circle mr-2 text-primary"></i>用户管理
+                    </h3>
+                    <div class="flex items-center mb-2">
+                        <select id="userSelect" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <option value="">选择用户</option>
+                        </select>
+                        <button id="addUserBtn" class="ml-2 px-2 py-1 bg-primary text-white rounded-md hover:bg-primary/90">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 功能导航 -->
+                <nav class="space-y-1">
+                    <button class="nav-item w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 nav-active" data-target="record-panel">
+                        <i class="fa fa-book mr-2"></i>收支记录
+                    </button>
+                    <button class="nav-item w-full text-left px-4 py-2 rounded-md hover:bg-gray-100" data-target="category-panel">
+                        <i class="fa fa-tags mr-2"></i>类别管理
+                    </button>
+                    <button class="nav-item w-full text-left px-4 py-2 rounded-md hover:bg-gray-100" data-target="stat-panel">
+                        <i class="fa fa-bar-chart mr-2"></i>数据统计
+                    </button>
+                    <button class="nav-item w-full text-left px-4 py-2 rounded-md hover:bg-gray-100" data-target="budget-panel">
+                        <i class="fa fa-calendar-check-o mr-2"></i>月度预算
+                    </button>
+                    <button class="nav-item w-full text-left px-4 py-2 rounded-md hover:bg-gray-100" data-target="backup-panel">
+                        <i class="fa fa-database mr-2"></i>备份恢复
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- 右侧内容区 -->
+            <main class="lg:col-span-9 space-y-6">
+                <!-- 收支记录面板 -->
+                <section id="record-panel" class="panel bg-white rounded-lg card-shadow p-6">
+                    <div class="flex flex-wrap justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">收支记录</h2>
+                        <button id="addRecordBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center">
+                            <i class="fa fa-plus mr-1"></i> 添加记录
+                        </button>
+                    </div>
+
+                    <!-- 记录筛选 -->
+                    <div class="flex flex-wrap gap-4 mb-6">
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">类型</label>
+                            <select id="recordTypeFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                <option value="all">全部</option>
+                                <option value="income">收入</option>
+                                <option value="expense">支出</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">类别</label>
+                            <select id="categoryFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                <option value="all">全部</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">日期范围</label>
+                            <input type="month" id="dateFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        </div>
+                        <div class="self-end">
+                            <button id="exportCsvBtn" class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center">
+                                <i class="fa fa-download mr-1"></i> 导出CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 记录列表 -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类别</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额(元)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordList" class="bg-white divide-y divide-gray-200">
+                                <!-- 记录列表由JS渲染 -->
+                                <tr class="text-center">
+                                    <td colspan="6" class="px-6 py-4 text-gray-500">请先选择用户并添加收支记录</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 类别管理面板 -->
+                <section id="category-panel" class="panel bg-white rounded-lg card-shadow p-6 hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">类别管理</h2>
+                        <button id="addCategoryBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center">
+                            <i class="fa fa-plus mr-1"></i> 添加类别
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 收入类别 -->
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center text-income">
+                                <i class="fa fa-arrow-down mr-2"></i>收入类别
+                            </h3>
+                            <div id="incomeCategoryList" class="space-y-2">
+                                <!-- 收入类别由JS渲染 -->
+                            </div>
+                        </div>
+
+                        <!-- 支出类别 -->
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center text-expense">
+                                <i class="fa fa-arrow-up mr-2"></i>支出类别
+                            </h3>
+                            <div id="expenseCategoryList" class="space-y-2">
+                                <!-- 支出类别由JS渲染 -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 数据统计面板 -->
+                <section id="stat-panel" class="panel bg-white rounded-lg card-shadow p-6 hidden">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">数据统计</h2>
+                        <div class="flex flex-wrap gap-4">
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">统计周期</label>
+                                <select id="statPeriod" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    <option value="day">按日</option>
+                                    <option value="week">按周</option>
+                                    <option value="month" selected>按月</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">统计日期</label>
+                                <input type="month" id="statDate" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            </div>
+                            <div class="self-end">
+                                <button id="refreshStatBtn" class="px-3 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
+                                    <i class="fa fa-refresh mr-1"></i> 刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 统计概览 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 card-shadow">
+                            <p class="text-sm text-gray-500 mb-1">总收入</p>
+                            <p id="totalIncome" class="text-2xl font-bold text-income">¥0.00</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 card-shadow">
+                            <p class="text-sm text-gray-500 mb-1">总支出</p>
+                            <p id="totalExpense" class="text-2xl font-bold text-expense">¥0.00</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 card-shadow">
+                            <p class="text-sm text-gray-500 mb-1">结余</p>
+                            <p id="balance" class="text-2xl font-bold text-primary">¥0.00</p>
+                        </div>
+                    </div>
+
+                    <!-- 图表区域 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="h-80">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 月度预算面板 -->
+                <section id="budget-panel" class="panel bg-white rounded-lg card-shadow p-6 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">月度预算</h2>
+
+                    <div class="max-w-md mx-auto">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">选择月份</label>
+                            <input type="month" id="budgetMonth" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">预算金额(元)</label>
+                            <input type="number" id="budgetAmount" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="输入月度预算金额">
+                        </div>
+                        <button id="saveBudgetBtn" class="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 mb-6">
+                            保存预算
+                        </button>
+
+                        <!-- 预算使用情况 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600">本月预算</span>
+                                <span id="budgetShow" class="font-medium">¥0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600">本月支出</span>
+                                <span id="monthExpense" class="font-medium">¥0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-sm text-gray-600">剩余预算</span>
+                                <span id="budgetLeft" class="font-medium">¥0.00</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                                <div id="budgetProgress" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p id="budgetTip" class="text-sm text-center mt-2"></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 备份恢复面板 -->
+                <section id="backup-panel" class="panel bg-white rounded-lg card-shadow p-6 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">数据备份与恢复</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- 备份 -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-download mr-2 text-primary"></i>数据备份
+                            </h3>
+                            <p class="text-gray-600 mb-4">将当前所有用户的记账数据导出为JSON文件，用于备份。</p>
+                            <button id="backupBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
+                                <i class="fa fa-save mr-1"></i> 导出备份文件
+                            </button>
+                        </div>
+
+                        <!-- 恢复 -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-upload mr-2 text-primary"></i>数据恢复
+                            </h3>
+                            <p class="text-gray-600 mb-4">从备份的JSON文件恢复所有记账数据（会覆盖现有数据）。</p>
+                            <div class="flex items-center">
+                                <input type="file" id="restoreFile" accept=".json" class="hidden" />
+                                <label for="restoreFile" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 cursor-pointer">
+                                    <i class="fa fa-folder-open mr-1"></i> 选择备份文件
+                                </label>
+                                <button id="restoreBtn" class="ml-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    <i class="fa fa-refresh mr-1"></i> 恢复数据
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- 添加/编辑记录模态框 -->
+    <div id="recordModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg w-full max-w-md p-6 card-shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-800">添加收支记录</h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="recordForm">
+                <input type="hidden" id="recordId">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">收支类型</label>
+                    <select id="recordType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" required>
+                        <option value="income">收入</option>
+                        <option value="expense">支出</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">类别</label>
+                    <select id="recordCategory" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" required>
+                        <!-- 类别由JS渲染 -->
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">金额(元)</label>
+                    <input type="number" id="recordAmount" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="请输入金额" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+                    <input type="date" id="recordDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                    <textarea id="recordRemark" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="可选"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelRecordBtn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加类别模态框 -->
+    <div id="categoryModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg w-full max-w-md p-6 card-shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">添加类别</h3>
+                <button id="closeCategoryModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="categoryForm">
+                <input type="hidden" id="categoryId">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">类别类型</label>
+                    <select id="categoryType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" required>
+                        <option value="income">收入</option>
+                        <option value="expense">支出</option>
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">类别名称</label>
+                    <input type="text" id="categoryName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="例如：餐饮、工资" required>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelCategoryBtn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加用户模态框 -->
+    <div id="userModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg w-full max-w-md p-6 card-shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">添加用户</h3>
+                <button id="closeUserModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="userForm">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <input type="text" id="userName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="请输入用户名" required>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelUserBtn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 数据模型 - 本地存储管理
+        const StorageManager = {
+            // 初始化默认数据
+            init() {
+                const defaultData = {
+                    users: [],
+                    data: {} // 按用户ID存储数据：{ userId: { records: [], categories: { income: [], expense: [] }, budgets: {} } }
+                };
+                
+                if (!localStorage.getItem('accountBook')) {
+                    localStorage.setItem('accountBook', JSON.stringify(defaultData));
+                }
+            },
+
+            // 获取所有数据
+            getAllData() {
+                return JSON.parse(localStorage.getItem('accountBook') || '{"users":[],"data":{}}');
+            },
+
+            // 保存所有数据
+            saveAllData(data) {
+                localStorage.setItem('accountBook', JSON.stringify(data));
+            },
+
+            // 获取用户列表
+            getUsers() {
+                return this.getAllData().users;
+            },
+
+            // 添加用户
+            addUser(userName) {
+                const data = this.getAllData();
+                const userId = Date.now().toString();
+                data.users.push({ id: userId, name: userName });
+                data.data[userId] = {
+                    records: [],
+                    categories: {
+                        income: [
+                            { id: '1', name: '工资' },
+                            { id: '2', name: '奖金' },
+                            { id: '3', name: '兼职' }
+                        ],
+                        expense: [
+                            { id: '101', name: '餐饮' },
+                            { id: '102', name: '交通' },
+                            { id: '103', name: '购物' },
+                            { id: '104', name: '学习' },
+                            { id: '105', name: '娱乐' }
+                        ]
+                    },
+                    budgets: {}
+                };
+                this.saveAllData(data);
+                return userId;
+            },
+
+            // 获取当前用户数据
+            getUserData(userId) {
+                const data = this.getAllData();
+                return data.data[userId] || { records: [], categories: { income: [], expense: [] }, budgets: {} };
+            },
+
+            // 保存用户数据
+            saveUserData(userId, userData) {
+                const data = this.getAllData();
+                data.data[userId] = userData;
+                this.saveAllData(data);
+            },
+
+            // 添加收支记录
+            addRecord(userId, record) {
+                const userData = this.getUserData(userId);
+                record.id = Date.now().toString();
+                userData.records.push(record);
+                this.saveUserData(userId, userData);
+                return record;
+            },
+
+            // 更新收支记录
+            updateRecord(userId, recordId, updatedRecord) {
+                const userData = this.getUserData(userId);
+                const index = userData.records.findIndex(r => r.id === recordId);
+                if (index !== -1) {
+                    userData.records[index] = { ...userData.records[index], ...updatedRecord, id: recordId };
+                    this.saveUserData(userId, userData);
+                    return true;
+                }
+                return false;
+            },
+
+            // 删除收支记录
+            deleteRecord(userId, recordId) {
+                const userData = this.getUserData(userId);
+                userData.records = userData.records.filter(r => r.id !== recordId);
+                this.saveUserData(userId, userData);
+            },
+
+            // 添加类别
+            addCategory(userId, type, category) {
+                const userData = this.getUserData(userId);
+                category.id = Date.now().toString();
+                userData.categories[type].push(category);
+                this.saveUserData(userId, userData);
+                return category;
+            },
+
+            // 删除类别
+            deleteCategory(userId, type, categoryId) {
+                const userData = this.getUserData(userId);
+                userData.categories[type] = userData.categories[type].filter(c => c.id !== categoryId);
+                this.saveUserData(userId, userData);
+            },
+
+            // 保存预算
+            saveBudget(userId, month, amount) {
+                const userData = this.getUserData(userId);
+                userData.budgets[month] = parseFloat(amount);
+                this.saveUserData(userId, userData);
+            },
+
+            // 获取预算
+            getBudget(userId, month) {
+                const userData = this.getUserData(userId);
+                return userData.budgets[month] || 0;
+            }
+        };
+
+        // 工具函数
+        const Utils = {
+            // 格式化金额
+            formatAmount(amount) {
+                return `¥${parseFloat(amount).toFixed(2)}`;
+            },
+
+            // 格式化日期
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            },
+
+            // 获取当月第一天
+            getMonthFirstDay(monthStr) {
+                if (!monthStr) {
+                    const now = new Date();
+                    monthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+                }
+                return `${monthStr}-01`;
+            },
+
+            // 获取当月最后一天
+            getMonthLastDay(monthStr) {
+                if (!monthStr) {
+                    const now = new Date();
+                    monthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+                }
+                const [year, month] = monthStr.split('-').map(Number);
+                return new Date(year, month, 0).toISOString().split('T')[0];
+            },
+
+            // 按周期统计数据
+            statByPeriod(records, period, date) {
+                let filteredRecords = [...records];
+                const now = new Date();
+                let startDate, endDate;
+
+                // 根据周期筛选日期
+                if (period === 'day') {
+                    const targetDate = date ? new Date(date) : now;
+                    const dateStr = targetDate.toISOString().split('T')[0];
+                    filteredRecords = filteredRecords.filter(r => r.date === dateStr);
+                } else if (period === 'week') {
+                    const targetDate = date ? new Date(date) : now;
+                    const day = targetDate.getDay() || 7; // 周日为7
+                    startDate = new Date(targetDate);
+                    startDate.setDate(targetDate.getDate() - day + 1);
+                    endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + 6);
+                    
+                    filteredRecords = filteredRecords.filter(r => {
+                        const recordDate = new Date(r.date);
+                        return recordDate >= startDate && recordDate <= endDate;
+                    });
+                } else if (period === 'month') {
+                    const monthStr = date || `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+                    startDate = this.getMonthFirstDay(monthStr);
+                    endDate = this.getMonthLastDay(monthStr);
+                    
+                    filteredRecords = filteredRecords.filter(r => {
+                        return r.date >= startDate && r.date <= endDate;
+                    });
+                }
+
+                // 计算收支
+                const income = filteredRecords
+                    .filter(r => r.type === 'income')
+                    .reduce((sum, r) => sum + parseFloat(r.amount), 0);
+                
+                const expense = filteredRecords
+                    .filter(r => r.type === 'expense')
+                    .reduce((sum, r) => sum + parseFloat(r.amount), 0);
+
+                // 按类别统计
+                const categoryStats = {};
+                filteredRecords.forEach(r => {
+                    if (!categoryStats[r.category]) {
+                        categoryStats[r.category] = { income: 0, expense: 0 };
+                    }
+                    categoryStats[r.category][r.type] += parseFloat(r.amount);
+                });
+
+                // 按日期趋势统计
+                const trendStats = {};
+                filteredRecords.forEach(r => {
+                    const key = period === 'month' ? r.date.split('-').slice(0, 3).join('-') : 
+                               period === 'week' ? `周${new Date(r.date).getDay() || 7}` : r.date;
+                    if (!trendStats[key]) {
+                        trendStats[key] = { income: 0, expense: 0 };
+                    }
+                    trendStats[key][r.type] += parseFloat(r.amount);
+                });
+
+                return {
+                    total: { income, expense, balance: income - expense },
+                    byCategory: categoryStats,
+                    byDate: trendStats
+                };
+            },
+
+            // 导出CSV
+            exportCSV(records, userName) {
+                const headers = ['日期', '类型', '类别', '金额(元)', '备注'];
+                const rows = [headers.join(',')];
+                
+                records.forEach(record => {
+                    const type = record.type === 'income' ? '收入' : '支出';
+                    const row = [
+                        record.date,
+                        type,
+                        record.categoryName || record.category,
+                        record.amount,
+                        `"${(record.remark || '').replace(/"/g, '""')}"` // 处理引号
+                    ];
+                    rows.push(row.join(','));
+                });
+
+                const csvContent = rows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${userName}_记账记录_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            // 备份数据
+            backupData() {
+                const data = StorageManager.getAllData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `记账助手备份_${new Date().toISOString().split('T')[0]}.json`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            // 恢复数据
+            restoreData(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            StorageManager.saveAllData(data);
+                            resolve(true);
+                        } catch (err) {
+                            reject('备份文件格式错误');
+                        }
+                    };
+                    reader.onerror = () => reject('读取文件失败');
+                    reader.readAsText(file);
+                });
+            }
+        };
+
+        // 页面控制器
+        const App = {
+            currentUserId: '',
+            trendChart: null,
+            categoryChart: null,
+
+            // 初始化应用
+            init() {
+                // 初始化存储
+                StorageManager.init();
+                
+                // 初始化DOM事件
+                this.initDOMEvents();
+                
+                // 加载用户列表
+                this.loadUsers();
+                
+                // 设置默认日期
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('recordDate').value = today;
+                document.getElementById('dateFilter').value = today.slice(0, 7);
+                document.getElementById('statDate').value = today.slice(0, 7);
+                document.getElementById('budgetMonth').value = today.slice(0, 7);
+                
+                // 初始化图表
+                this.initCharts();
+            },
+
+            // 初始化DOM事件
+            initDOMEvents() {
+                // 导航切换
+                document.querySelectorAll('.nav-item').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // 切换导航激活状态
+                        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
+                        e.target.closest('.nav-item').classList.add('nav-active');
+                        
+                        // 切换面板显示
+                        const target = e.target.closest('.nav-item').dataset.target;
+                        document.querySelectorAll('.panel').forEach(panel => {
+                            panel.classList.add('hidden');
+                        });
+                        document.getElementById(target).classList.remove('hidden');
+                        
+                        // 如果是统计面板，刷新统计数据
+                        if (target === 'stat-panel' && this.currentUserId) {
+                            this.refreshStatistics();
+                        }
+                        
+                        // 如果是预算面板，加载预算数据
+                        if (target === 'budget-panel' && this.currentUserId) {
+                            this.loadBudgetData();
+                        }
+                    });
+                });
+
+                // 用户相关
+                document.getElementById('addUserBtn').addEventListener('click', () => {
+                    document.getElementById('userModal').classList.remove('hidden');
+                });
+
+                document.getElementById('closeUserModalBtn').addEventListener('click', () => {
+                    document.getElementById('userModal').classList.add('hidden');
+                });
+
+                document.getElementById('cancelUserBtn').addEventListener('click', () => {
+                    document.getElementById('userModal').classList.add('hidden');
+                });
+
+                document.getElementById('userForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const userName = document.getElementById('userName').value.trim();
+                    if (userName) {
+                        StorageManager.addUser(userName);
+                        this.loadUsers();
+                        document.getElementById('userModal').classList.add('hidden');
+                        document.getElementById('userForm').reset();
+                    }
+                });
+
+                document.getElementById('userSelect').addEventListener('change', (e) => {
+                    this.currentUserId = e.target.value;
+                    if (this.currentUserId) {
+                        this.loadCategories();
+                        this.loadRecords();
+                        this.refreshStatistics();
+                        this.loadBudgetData();
+                    } else {
+                        document.getElementById('recordList').innerHTML = '<tr class="text-center"><td colspan="6" class="px-6 py-4 text-gray-500">请先选择用户</td></tr>';
+                        document.getElementById('incomeCategoryList').innerHTML = '';
+                        document.getElementById('expenseCategoryList').innerHTML = '';
+                    }
+                });
+
+                // 记录相关
+                document.getElementById('addRecordBtn').addEventListener('click', () => {
+                    if (!this.currentUserId) {
+                        alert('请先选择用户');
+                        return;
+                    }
+                    document.getElementById('modalTitle').textContent = '添加收支记录';
+                    document.getElementById('recordForm').reset();
+                    document.getElementById('recordId').value = '';
+                    document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+                    this.loadCategoriesToModal();
+                    document.getElementById('recordModal').classList.remove('hidden');
+                });
+
+                document.getElementById('closeModalBtn').addEventListener('click', () => {
+                    document.getElementById('recordModal').classList.add('hidden');
+                });
+
+                document.getElementById('cancelRecordBtn').addEventListener('click', () => {
+                    document.getElementById('recordModal').classList.add('hidden');
+                });
+
+                document.getElementById('recordForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (!this.currentUserId) return;
+
+                    const recordId = document.getElementById('recordId').value;
+                    const record = {
+                        type: document.getElementById('recordType').value,
+                        category: document.getElementById('recordCategory').value,
+                        amount: document.getElementById('recordAmount').value,
+                        date: document.getElementById('recordDate').value,
+                        remark: document.getElementById('recordRemark').value.trim()
+                    };
+
+                    if (recordId) {
+                        StorageManager.updateRecord(this.currentUserId, recordId, record);
+                    } else {
+                        StorageManager.addRecord(this.currentUserId, record);
+                    }
+
+                    this.loadRecords();
+                    this.refreshStatistics();
+                    this.loadBudgetData();
+                    document.getElementById('recordModal').classList.add('hidden');
+                });
+
+                // 类别相关
+                document.getElementById('addCategoryBtn').addEventListener('click', () => {
+                    if (!this.currentUserId) {
+                        alert('请先选择用户');
+                        return;
+                    }
+                    document.getElementById('categoryForm').reset();
+                    document.getElementById('categoryId').value = '';
+                    document.getElementById('categoryModal').classList.remove('hidden');
+                });
+
+                document.getElementById('closeCategoryModalBtn').addEventListener('click', () => {
+                    document.getElementById('categoryModal').classList.add('hidden');
+                });
+
+                document.getElementById('cancelCategoryBtn').addEventListener('click', () => {
+                    document.getElementById('categoryModal').classList.add('hidden');
+                });
+
+                document.getElementById('categoryForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (!this.currentUserId) return;
+
+                    const type = document.getElementById('categoryType').value;
+                    const name = document.getElementById('categoryName').value.trim();
+                    
+                    if (name) {
+                        StorageManager.addCategory(this.currentUserId, type, { name });
+                        this.loadCategories();
+                        this.loadCategoriesToModal();
+                        this.loadCategoryFilter();
+                        document.getElementById('categoryModal').classList.add('hidden');
+                    }
+                });
+
+                // 筛选记录
+                document.getElementById('recordTypeFilter').addEventListener('change', () => this.loadRecords());
+                document.getElementById('categoryFilter').addEventListener('change', () => this.loadRecords());
+                document.getElementById('dateFilter').addEventListener('change', () => this.loadRecords());
+
+                // 导出CSV
+                document.getElementById('exportCsvBtn').addEventListener('click', () => {
+                    if (!this.currentUserId) {
+                        alert('请先选择用户');
+                        return;
+                    }
+                    const userData = StorageManager.getUserData(this.currentUserId);
+                    const userName = this.getCurrentUserName();
+                    // 补充类别名称
+                    const recordsWithNames = userData.records.map(record => {
+                        const categoryList = userData.categories[record.type];
+                        const category = categoryList.find(c => c.id === record.category) || { name: record.category };
+                        return { ...record, categoryName: category.name };
+                    });
+                    Utils.exportCSV(recordsWithNames, userName);
+                });
+
+                // 统计相关
+                document.getElementById('refreshStatBtn').addEventListener('click', () => this.refreshStatistics());
+                document.getElementById('statPeriod').addEventListener('change', () => this.refreshStatistics());
+                document.getElementById('statDate').addEventListener('change', () => this.refreshStatistics());
+
+                // 预算相关
+                document.getElementById('saveBudgetBtn').addEventListener('click', () => {
+                    if (!this.currentUserId) {
+                        alert('请先选择用户');
+                        return;
+                    }
+                    const month = document.getElementById('budgetMonth').value;
+                    const amount = document.getElementById('budgetAmount').value;
+                    if (amount && parseFloat(amount) >= 0) {
+                        StorageManager.saveBudget(this.currentUserId, month, amount);
+                        this.loadBudgetData();
+                        alert('预算保存成功');
+                    } else {
+                        alert('请输入有效的预算金额');
+                    }
+                });
+
+                // 备份恢复
+                document.getElementById('backupBtn').addEventListener('click', () => {
+                    Utils.backupData();
+                });
+
+                document.getElementById('restoreFile').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('restoreBtn').disabled = false;
+                        document.getElementById('restoreBtn').dataset.file = file.name;
+                    } else {
+                        document.getElementById('restoreBtn').disabled = true;
+                    }
+                });
+
+                document.getElementById('restoreBtn').addEventListener('click', async () => {
+                    const fileInput = document.getElementById('restoreFile');
+                    const file = fileInput.files[0];
+                    if (!file) return;
+
+                    if (confirm('恢复数据将覆盖现有所有数据，确定要继续吗？')) {
+                        try {
+                            await Utils.restoreData(file);
+                            alert('数据恢复成功，请刷新页面');
+                            window.location.reload();
+                        } catch (err) {
+                            alert(`恢复失败：${err}`);
+                        }
+                    }
+                });
+            },
+
+            // 加载用户列表
+            loadUsers() {
+                const userSelect = document.getElementById('userSelect');
+                const users = StorageManager.getUsers();
+                
+                userSelect.innerHTML = '<option value="">选择用户</option>';
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.name;
+                    userSelect.appendChild(option);
+                });
+
+                // 如果有当前用户ID，选中对应的用户
+                if (this.currentUserId) {
+                    userSelect.value = this.currentUserId;
+                }
+            },
+
+            // 获取当前用户名
+            getCurrentUserName() {
+                const users = StorageManager.getUsers();
+                const user = users.find(u => u.id === this.currentUserId);
+                return user ? user.name : '未知用户';
+            },
+
+            // 加载类别
+            loadCategories() {
+                if (!this.currentUserId) return;
+
+                const userData = StorageManager.getUserData(this.currentUserId);
+                const incomeList = document.getElementById('incomeCategoryList');
+                const expenseList = document.getElementById('expenseCategoryList');
+
+                // 渲染收入类别
+                incomeList.innerHTML = '';
+                userData.categories.income.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center p-2 border border-gray-200 rounded-md';
+                    item.innerHTML = `
+                        <span>${category.name}</span>
+                        <button class="text-red-500 hover:text-red-700 delete-category" data-type="income" data-id="${category.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    `;
+                    incomeList.appendChild(item);
+                });
+
+                // 渲染支出类别
+                expenseList.innerHTML = '';
+                userData.categories.expense.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center p-2 border border-gray-200 rounded-md';
+                    item.innerHTML = `
+                        <span>${category.name}</span>
+                        <button class="text-red-500 hover:text-red-700 delete-category" data-type="expense" data-id="${category.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    `;
+                    expenseList.appendChild(item);
+                });
+
+                // 绑定删除类别事件
+                document.querySelectorAll('.delete-category').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const type = e.target.closest('.delete-category').dataset.type;
+                        const id = e.target.closest('.delete-category').dataset.id;
+                        
+                        if (confirm('确定要删除该类别吗？删除后不会影响已有记录')) {
+                            StorageManager.deleteCategory(this.currentUserId, type, id);
+                            this.loadCategories();
+                            this.loadCategoriesToModal();
+                            this.loadCategoryFilter();
+                        }
+                    });
+                });
+
+                // 加载类别筛选器
+                this.loadCategoryFilter();
+            },
+
+            // 加载类别到模态框
+            loadCategoriesToModal() {
+                if (!this.currentUserId) return;
+
+                const userData = StorageManager.getUserData(this.currentUserId);
+                const categorySelect = document.getElementById('recordCategory');
+                const recordType = document.getElementById('recordType').value;
+                
+                // 清空并加载对应类型的类别
+                categorySelect.innerHTML = '';
+                userData.categories[recordType].forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+
+                // 监听类型切换，动态更新类别
+                document.getElementById('recordType').addEventListener('change', (e) => {
+                    const type = e.target.value;
+                    categorySelect.innerHTML = '';
+                    userData.categories[type].forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        categorySelect.appendChild(option);
+                    });
+                });
+            },
+
+            // 加载类别筛选器
+            loadCategoryFilter() {
+                if (!this.currentUserId) return;
+
+                const userData = StorageManager.getUserData(this.currentUserId);
+                const categoryFilter = document.getElementById('categoryFilter');
+                
+                // 清空并添加所有类别
+                categoryFilter.innerHTML = '<option value="all">全部</option>';
+                
+                // 合并收入和支出类别
+                const allCategories = [
+                    ...userData.categories.income.map(c => ({ ...c, type: 'income' })),
+                    ...userData.categories.expense.map(c => ({ ...c, type: 'expense' }))
+                ];
+                
+                allCategories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categoryFilter.appendChild(option);
+                });
+            },
+
+            // 加载记录列表
+            loadRecords() {
+                if (!this.currentUserId) {
+                    document.getElementById('recordList').innerHTML = '<tr class="text-center"><td colspan="6" class="px-6 py-4 text-gray-500">请先选择用户</td></tr>';
+                    return;
+                }
+
+                const userData = StorageManager.getUserData(this.currentUserId);
+                const recordList = document.getElementById('recordList');
+                const typeFilter = document.getElementById('recordTypeFilter').value;
+                const categoryFilter = document.getElementById('categoryFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+
+                // 筛选记录
+                let filteredRecords = [...userData.records];
+                
+                // 类型筛选
+                if (typeFilter !== 'all') {
+                    filteredRecords = filteredRecords.filter(r => r.type === typeFilter);
+                }
+
+                // 类别筛选
+                if (categoryFilter !== 'all') {
+                    filteredRecords = filteredRecords.filter(r => r.category === categoryFilter);
+                }
+
+                // 日期筛选（按月）
+                if (dateFilter) {
+                    const startDate = Utils.getMonthFirstDay(dateFilter);
+                    const endDate = Utils.getMonthLastDay(dateFilter);
+                    filteredRecords = filteredRecords.filter(r => r.date >= startDate && r.date <= endDate);
+                }
+
+                // 按日期倒序排序
+                filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // 渲染记录
+                if (filteredRecords.length === 0) {
+                    recordList.innerHTML = '<tr class="text-center"><td colspan="6" class="px-6 py-4 text-gray-500">暂无记录</td></tr>';
+                    return;
+                }
+
+                recordList.innerHTML = '';
+                filteredRecords.forEach(record => {
+                    // 获取类别名称
+                    const categoryList = userData.categories[record.type];
+                    const category = categoryList.find(c => c.id === record.category) || { name: record.category };
+                    
+                    // 类型样式
+                    const typeClass = record.type === 'income' ? 'text-income' : 'text-expense';
+                    const typeText = record.type === 'income' ? '收入' : '支出';
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${record.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap ${typeClass}">${typeText}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${category.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap ${typeClass} font-medium">${Utils.formatAmount(record.amount)}</td>
+                        <td class="px-6 py-4">${record.remark || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="text-primary hover:text-primary/80 mr-3 edit-record" data-id="${record.id}">
+                                <i class="fa fa-edit"></i> 编辑
+                            </button>
+                            <button class="text-red-500 hover:text-red-700 delete-record" data-id="${record.id}">
+                                <i class="fa fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    `;
+                    recordList.appendChild(tr);
+                });
+
+                // 绑定编辑和删除事件
+                document.querySelectorAll('.edit-record').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const recordId = e.target.closest('.edit-record').dataset.id;
+                        const record = userData.records.find(r => r.id === recordId);
+                        
+                        if (record) {
+                            document.getElementById('modalTitle').textContent = '编辑收支记录';
+                            document.getElementById('recordId').value = recordId;
+                            document.getElementById('recordType').value = record.type;
+                            document.getElementById('recordAmount').value = record.amount;
+                            document.getElementById('recordDate').value = record.date;
+                            document.getElementById('recordRemark').value = record.remark || '';
+                            
+                            // 加载类别并选中对应项
+                            this.loadCategoriesToModal();
+                            document.getElementById('recordCategory').value = record.category;
+                            
+                            document.getElementById('recordModal').classList.remove('hidden');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.delete-record').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const recordId = e.target.closest('.delete-record').dataset.id;
+                        if (confirm('确定要删除这条记录吗？')) {
+                            StorageManager.deleteRecord(this.currentUserId, recordId);
+                            this.loadRecords();
+                            this.refreshStatistics();
+                            this.loadBudgetData();
+                        }
+                    });
+                });
+            },
+
+            // 初始化图表
+            initCharts() {
+                const trendCtx = document.getElementById('trendChart').getContext('2d');
+                const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+
+                // 趋势图表
+                this.trendChart = new Chart(trendCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '收入',
+                                data: [],
+                                backgroundColor: '#10b981',
+                                borderColor: '#059669',
+                                borderWidth: 1
+                            },
+                            {
+                                label: '支出',
+                                data: [],
+                                backgroundColor: '#ef4444',
+                                borderColor: '#dc2626',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '金额 (元)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '收支趋势'
+                            }
+                        }
+                    }
+                });
+
+                // 类别图表
+                this.categoryChart = new Chart(categoryCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: '金额',
+                            data: [],
+                            backgroundColor: [
+                                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                                '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#f97316'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '支出类别占比'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${label}: ¥${value.toFixed(2)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            // 刷新统计数据
+            refreshStatistics() {
+                if (!this.currentUserId) return;
+
+                const userData = StorageManager.getUserData(this.currentUserId);
+                const period = document.getElementById('statPeriod').value;
+                const date = document.getElementById('statDate').value;
+
+                // 统计数据
+                const stats = Utils.statByPeriod(userData.records, period, date);
+
+                // 更新概览
+                document.getElementById('totalIncome').textContent = Utils.formatAmount(stats.total.income);
+                document.getElementById('totalExpense').textContent = Utils.formatAmount(stats.total.expense);
+                document.getElementById('balance').textContent = Utils.formatAmount(stats.total.balance);
+
+                // 更新趋势图表
+                const trendLabels = Object.keys(stats.byDate).sort();
+                const incomeData = trendLabels.map(label => stats.byDate[label].income);
+                const expenseData = trendLabels.map(label => stats.byDate[label].expense);
+
+                this.trendChart.data.labels = trendLabels;
+                this.trendChart.data.datasets[0].data = incomeData;
+                this.trendChart.data.datasets[1].data = expenseData;
+                this.trendChart.options.plugins.title.text = `${period === 'day' ? '日' : period === 'week' ? '周' : '月'}收支趋势`;
+                this.trendChart.update();
+
+                // 更新类别图表（只显示支出）
+                const expenseCategories = Object.entries(stats.byCategory)
+                    .filter(([_, data]) => data.expense > 0)
+                    .sort((a, b) => b[1].expense - a[1].expense);
+                
+                // 获取类别名称
+                const categoryLabels = expenseCategories.map(([categoryId]) => {
+                    const category = [
+                        ...userData.categories.income,
+                        ...userData.categories.expense
+                    ].find(c => c.id === categoryId);
+                    return category ? category.name : categoryId;
+                });
+                const categoryData = expenseCategories.map(([_, data]) => data.expense);
+
+                this.categoryChart.data.labels = categoryLabels;
+                this.categoryChart.data.datasets[0].data = categoryData;
+                this.categoryChart.update();
+            },
+
+            // 加载预算数据
+            loadBudgetData() {
+                if (!this.currentUserId) return;
+
+                const month = document.getElementById('budgetMonth').value;
+                const budgetAmount = StorageManager.getBudget(this.currentUserId, month);
+                const userData = StorageManager.getUserData(this.currentUserId);
+                
+                // 计算当月支出
+                const stats = Utils.statByPeriod(userData.records, 'month', month);
+                const monthExpense = stats.total.expense;
+                const budgetLeft = budgetAmount - monthExpense;
+                
+                // 更新显示
+                document.getElementById('budgetShow').textContent = Utils.formatAmount(budgetAmount);
+                document.getElementById('monthExpense').textContent = Utils.formatAmount(monthExpense);
+                document.getElementById('budgetLeft').textContent = Utils.formatAmount(Math.max(0, budgetLeft));
+                
+                // 更新进度条
+                const progress = budgetAmount > 0 ? Math.min(100, (monthExpense / budgetAmount) * 100) : 0;
+                document.getElementById('budgetProgress').style.width = `${progress}%`;
+                
+                // 更新提示
+                const tipEl = document.getElementById('budgetTip');
+                if (budgetAmount <= 0) {
+                    tipEl.textContent = '未设置月度预算';
+                    tipEl.className = 'text-sm text-center mt-2 text-gray-500';
+                } else if (budgetLeft < 0) {
+                    tipEl.textContent = `已超支 ¥${Math.abs(budgetLeft).toFixed(2)}`;
+                    tipEl.className = 'text-sm text-center mt-2 text-expense font-medium';
+                } else if (progress > 80) {
+                    tipEl.textContent = '预算即将用完，注意节制哦';
+                    tipEl.className = 'text-sm text-center mt-2 text-yellow-600';
+                } else {
+                    tipEl.textContent = '预算使用正常';
+                    tipEl.className = 'text-sm text-center mt-2 text-income';
+                }
+                
+                // 填充预算输入框
+                document.getElementById('budgetAmount').value = budgetAmount || '';
+            }
+        };
+
+        // 页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+</body>
+</html>
